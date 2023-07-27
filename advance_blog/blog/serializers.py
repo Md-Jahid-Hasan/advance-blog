@@ -13,10 +13,22 @@ class BlogSectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BlogSection
-        fields = ['text', 'image_layout', 'blog_section_images', 'blog']
+        fields = ['text', 'sub_title', 'image_layout', 'blog_section_images', 'blog']
         extra_kwargs = {
             'blog': {'required': False}
         }
+
+    def create(self, validated_data):
+        section_image = validated_data.pop('blog_section_images')
+
+        blog_section = super().create(validated_data)
+
+        if len(section_image):
+            section_image_serializer = BlogImageSerializer(data=section_image, many=True)
+            section_image_serializer.is_valid()
+            section_image_serializer.save(blog_section=blog_section)
+
+        return blog_section
 
 
 class BlogSerializer(serializers.ModelSerializer):
@@ -29,9 +41,10 @@ class BlogSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         blog_text = validated_data.pop('blog_text')
-        blog = Blog.objects.create(**validated_data)
 
         blog_section_serializer = BlogSectionSerializer(data=blog_text, many=True)
         blog_section_serializer.is_valid()
+
+        blog = Blog.objects.create(**validated_data)
         blog_section_serializer.save(blog=blog)
         return blog
