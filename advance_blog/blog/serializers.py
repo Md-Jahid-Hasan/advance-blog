@@ -19,7 +19,7 @@ class BlogSectionSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        section_image = validated_data.pop('blog_section_images')
+        section_image = validated_data.pop('blog_section_images', [])
 
         blog_section = super().create(validated_data)
 

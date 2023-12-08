@@ -30,3 +30,9 @@ class BlogCreateView(generics.CreateAPIView):
             serializer.save(author=author)
         else:
             serializer.save(self.request.user)
+
+
+class SingleBlogView(generics.RetrieveAPIView):
+    serializer_class = BlogSerializer
+    queryset = Blog.objects.all()
+    lookup_field = 'id'
