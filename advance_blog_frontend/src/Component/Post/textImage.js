@@ -14,6 +14,7 @@ const TextImage = () => {
     const imgset_2 = [img1];
     const imgset_3 = [img1, img2, img3, img4, img5, img6, img7];
     const imgset_4 = [img1, img2, img3];
+
     return (
       <div>
           <PlainText/>

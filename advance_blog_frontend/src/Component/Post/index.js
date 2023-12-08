@@ -11,7 +11,7 @@ const Post = () => {
                 <img src={image} className="card-img" style={{height: "250px"}} alt="..."></img>
                 <div className="card-img-overlay d-flex align-items-center p-3 p-sm-4">
                     <div className="w-100 my-auto">
-                        <h5 className="card-title text-center align-middle">Blog title</h5>
+                        <h5 className="card-title text-center align-middle text-white">Blog title</h5>
                         {/*<p className="card-text">This is a wider card with supporting text below as a natural lead-in to*/}
                         {/*    additional content. This content is a little bit longer.</p>*/}
                         {/*<p className="card-text"><small>Last updated 3 mins ago</small></p>*/}

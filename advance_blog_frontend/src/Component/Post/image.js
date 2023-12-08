@@ -15,7 +15,7 @@ const Image = ({img, imageStyle}) => {
       return (
           <div className={imagePosition}>
               {allImage.map((image, index) => (
-                  <div className={"col-md-4"}>
+                  <div className={"col-md-4 text-center"}>
                     <img src={image} alt={""} key={index} className={"img-fluid rounded "} style={{"height":"15rem"}}/>
                   </div>
               ))}
