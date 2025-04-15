@@ -6,6 +6,9 @@ class BlogImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlogImage
         fields = '__all__'
+        extra_kwargs = {
+            'blog_section': {'required': False}
+        }
 
 
 class BlogSectionSerializer(serializers.ModelSerializer):
@@ -19,7 +22,7 @@ class BlogSectionSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        section_image = validated_data.pop('blog_section_images')
+        section_image = validated_data.pop('blog_section_images', [])
 
         blog_section = super().create(validated_data)
 
@@ -32,19 +35,30 @@ class BlogSectionSerializer(serializers.ModelSerializer):
 
 
 class BlogSerializer(serializers.ModelSerializer):
-    blog_text = BlogSectionSerializer(many=True)
+    content = BlogSectionSerializer(many=True)
 
     class Meta:
         model = Blog
-        fields = ['title', 'author', 'cover_photo', 'created_at', 'updated_at', 'blog_text']
+        fields = ['id', 'title', 'author', 'cover_photo', 'created_at', 'updated_at', 'content']
         read_only_fields = ('created_at', 'updated_at')
 
     def create(self, validated_data):
-        blog_text = validated_data.pop('blog_text')
+        blog_text = validated_data.pop('content')
 
         blog_section_serializer = BlogSectionSerializer(data=blog_text, many=True)
         blog_section_serializer.is_valid()
-
+        cover_photo = validated_data.pop('cover_photo')
         blog = Blog.objects.create(**validated_data)
+        blog.cover_photo = cover_photo
+        blog.save()
+
         blog_section_serializer.save(blog=blog)
         return blog
+
+
+class BlogListSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source='author.name', read_only=True)
+
+    class Meta:
+        model = Blog
+        fields = ['id', 'title', 'author_name', 'cover_photo', 'created_at']

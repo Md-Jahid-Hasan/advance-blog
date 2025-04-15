@@ -1,15 +1,17 @@
+from django.utils.text import slugify
 from django.db import models
 from django.contrib.auth import get_user_model as User
 
 
 def get_upload_path(instance, filename):
     blog_id = instance.blog_section.blog.id
-    return f"{blog_id}/{blog_id}{instance.blog_section.id}-{filename}"
+    return f"media/{blog_id}/{instance.blog_section.id}_{filename}"
 
 
 def get_upload_path_for_cover(instance, filename):
     blog_id = instance.id
-    return f"{blog_id}/cover-{filename}"
+    filename = slugify(instance.title) + filename[filename.rfind('.'):]
+    return f"media/{blog_id}/cover-{filename}"
 
 
 class Blog(models.Model):
@@ -25,7 +27,7 @@ class BlogSection(models.Model):
         ('RE', 'REGULAR'), ('SS', 'SIDE BY SIDE'), ('SL', 'SLIDER')
     ]
     sub_title = models.CharField(max_length=150, null=True)
-    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name='blog_text')
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name='content')
     text = models.TextField()
     image_layout = models.CharField(choices=IMAGE_LAYOUT, default="RE", max_length=2, null=True)
 
