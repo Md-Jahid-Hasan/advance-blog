@@ -2,14 +2,14 @@
 
 import type React from "react"
 
-import {useState, useRef} from "react"
+import {useState, useRef, useEffect} from "react"
 import Button from "../atoms/Button"
-import TextEditor from "../molecules/TextEditor"
 import ImageUploader from "../molecules/ImageUploader"
 import BlogPreview from "./BlogPreview"
-import Image from "next/image"
+import QuillEditor from "../molecules/QuillEditor"
 import type {BlogContent, BlogPost} from "@/utility/types"
 import {useRouter} from "next/navigation";
+import {useToast} from "../context/ToastContext"
 
 export default function BlogForm() {
     const router = useRouter()
@@ -21,7 +21,7 @@ export default function BlogForm() {
     const [currentContent, setCurrentContent] = useState<BlogContent | null>(null)
     const [editingIndex, setEditingIndex] = useState<number | null>(null)
     const [previewMode, setPreviewMode] = useState<boolean>(false)
-    const [errorMessage, setErrorMessage] = useState(null)
+    const {showToast} = useToast()
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
     const formRef = useRef<HTMLFormElement>(null)
 
@@ -34,10 +34,7 @@ export default function BlogForm() {
         if (file) {
             // Check file size (5MB limit)
             if (file.size > 5 * 1024 * 1024) {
-                setErrorMessage({
-                    type: "error",
-                    message: "Cover image size exceeds 5MB limit. Please choose a smaller file.",
-                })
+                showToast("Cover image size exceeds 5MB limit. Please choose a smaller file.", "error")
                 return
             }
             const imageUrl = URL.createObjectURL(file)
@@ -46,28 +43,27 @@ export default function BlogForm() {
                 coverImage: imageUrl,
                 coverImageFile: file,
             })
-            setErrorMessage(null)
+            showToast("Cover image uploaded successfully.", "success", 3000)
         }
     }
 
     const addTextField = () => {
-        setCurrentContent({type: "text", value: ""})
+        // setCurrentContent({type: "text", value: ""})
+        setCurrentContent({section_type: "text", text: ""})
         setEditingIndex(null)
-        setErrorMessage(null)
     }
 
     const addImageField = () => {
-        setCurrentContent({type: "image", value: [], files: []})
+        setCurrentContent({section_type: "image", blog_section_images: [], files: []})
         setEditingIndex(null)
-        setErrorMessage(null)
     }
 
     const updateCurrentContent = (value: string | string[] | File[], files?: File[]) => {
         if (currentContent) {
-            if (currentContent.type === "image" && files) {
-                setCurrentContent({...currentContent, value, files})
+            if (currentContent.section_type === "image" && files) {
+                setCurrentContent({...currentContent, blog_section_images: value, files})
             } else {
-                setCurrentContent({...currentContent, value})
+                setCurrentContent({...currentContent, text: value})
             }
         }
     }
@@ -77,13 +73,10 @@ export default function BlogForm() {
 
         // Validate content is not empty
         if (
-            (currentContent.type === "text" && (currentContent.value as string).trim() === "") ||
-            (currentContent.type === "image" && (currentContent.value as string[]).length === 0)
+            (currentContent.section_type === "text" && (currentContent.text as string).replace(/<(.|\n)*?>/g, "").trim() === "") ||
+            (currentContent.section_type === "image" && (currentContent.blog_section_images as string[]).length === 0)
         ) {
-            setErrorMessage({
-                type: "warning",
-                message: "Content cannot be empty. Please add some text or images.",
-            })
+            showToast("Content cannot be empty. Please add some text or images.", "warning")
             return
         }
 
@@ -100,18 +93,16 @@ export default function BlogForm() {
         setBlogPost({...blogPost, content: newContent})
         setCurrentContent(null)
         setEditingIndex(null)
-        setErrorMessage(null)
     }
 
     const editContent = (index: number) => {
         setCurrentContent(blogPost.content[index])
         setEditingIndex(index)
         setPreviewMode(false)
-        setErrorMessage(null)
     }
 
     const dismissError = () => {
-        setErrorMessage(null)
+        showToast("Cover image removed.", "info", 3000)
     }
 
     const cancelEdit = () => {
@@ -123,6 +114,9 @@ export default function BlogForm() {
         setPreviewMode(!previewMode)
         setCurrentContent(null)
         setEditingIndex(null)
+        if (!previewMode) {
+            showToast("Preview mode enabled. You can see how your blog will look.", "info", 3000)
+        }
     }
 
     const removeCoverImage = () => {
@@ -132,32 +126,22 @@ export default function BlogForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSubmitting(true)
-        setErrorMessage(null)
 
         // Validate required fields
         if (!blogPost.title.trim()) {
-            setErrorMessage({
-                type: "error",
-                message: "Please enter a blog title.",
-            })
+            showToast("Please enter a blog title.", "error")
             setIsSubmitting(false)
             return
         }
 
         if (!blogPost.coverImageFile) {
-            setErrorMessage({
-                type: "error",
-                message: "Please upload a cover image.",
-            })
+            showToast("Please upload a cover image.", "error")
             setIsSubmitting(false)
             return
         }
 
         if (blogPost.content.length === 0) {
-            setErrorMessage({
-                type: "error",
-                message: "Please add some content to your blog.",
-            })
+            showToast("Please add some content to your blog.", "error")
             setIsSubmitting(false)
             return
         }
@@ -176,14 +160,14 @@ export default function BlogForm() {
             // Process content items
             const contentForDjango = blogPost.content
                 .map((item, index) => {
-                    if (item.type === "text") {
+                    if (item.section_type === "text") {
                         // For text content, just return the value
                         return {
                             type: "text",
-                            text: item.value,
+                            text: item.text,
                             order: index,
                         }
-                    } else if (item.type === "image") {
+                    } else if (item.section_type === "image") {
                         // For image content, we'll handle the files separately
                         // and just include references in the JSON
                         const imageFiles = item.files || []
@@ -213,16 +197,14 @@ export default function BlogForm() {
                 // No need to set Content-Type header, browser will set it with boundary
             })
 
-            if(!response.ok){
+            if (!response.ok) {
                 const errorData = await response.json()
-                setErrorMessage({
-                    type: "error",
-                    message: "Failed to submit blog post. ",
-                })
+                showToast("Failed to save and post your blog", "error")
             } else {
-                if(response.status == 201){
+                if (response.status == 201) {
                     const blog = await response.json()
                     console.log(blog)
+                    showToast("Blog post successfully submitted!", "success")
                     router.push(`/blog/${blog.id}`)
                 }
                 console.log(response)
@@ -231,10 +213,7 @@ export default function BlogForm() {
 
         } catch (error) {
             console.error("Error submitting blog post:", error)
-            setErrorMessage({
-                type: "error",
-                message: error instanceof Error ? error.message : "Failed to submit blog post. Please try again.",
-            })
+            showToast(error instanceof Error ? error.message : "Failed to submit blog post. Please try again.", "error")
         } finally {
             setIsSubmitting(false)
         }
@@ -244,33 +223,6 @@ export default function BlogForm() {
         <form ref={formRef} onSubmit={handleSubmit} encType="multipart/form-data">
             <div className="mb-5">
                 <div className="card shadow-lg border-0">
-                    {/* Error Message Display */}
-                    {errorMessage && (
-                        <div
-                            className={`alert alert-${
-                                errorMessage.type === "error" ? "danger" : errorMessage.type === "warning" ? "warning" : "info"
-                            } alert-dismissible fade show m-3 mb-0`}
-                            role="alert"
-                        >
-                            <i
-                                className={`bi bi-${
-                                    errorMessage.type === "error"
-                                        ? "exclamation-triangle"
-                                        : errorMessage.type === "warning"
-                                            ? "exclamation-circle"
-                                            : "info-circle"
-                                } me-2`}
-                            ></i>
-                            {errorMessage.message}
-                            <button
-                                type="button"
-                                className="btn-close"
-                                data-bs-dismiss="alert"
-                                aria-label="Close"
-                                onClick={dismissError}
-                            ></button>
-                        </div>
-                    )}
 
                     <div className="card-header bg-white py-3 border-0">
                         <div className="d-flex justify-content-between align-items-center">
@@ -311,23 +263,33 @@ export default function BlogForm() {
                                     </label>
                                     <div className="p-4 bg-light rounded">
                                         {blogPost.coverImage ? (
-                                            <div className="position-relative mb-3" style={{height: "300px"}}>
-                                                <Image
-                                                    src={blogPost.coverImage || "/placeholder.svg"}
-                                                    alt="Cover image"
-                                                    fill
-                                                    style={{objectFit: "cover", borderRadius: "0.375rem"}}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    onClick={removeCoverImage}
-                                                    variant="danger"
-                                                    size="sm"
-                                                    className="position-absolute top-0 end-0 m-2"
-                                                >
-                                                    <i className="bi bi-trash me-1"></i>
-                                                    Remove
-                                                </Button>
+                                            <div className="text-center mb-3">
+                                                <div className="position-relative mb-2">
+                                                    <img
+                                                        src={blogPost.coverImage || "/placeholder.svg"}
+                                                        alt="Cover image"
+                                                        className="img-fluid rounded"
+                                                        style={{maxHeight: "300px"}}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        onClick={removeCoverImage}
+                                                        variant="danger"
+                                                        size="sm"
+                                                        className="position-absolute top-0 end-0 m-2"
+                                                    >
+                                                        <i className="bi bi-trash me-1"></i>
+                                                        Remove
+                                                    </Button>
+                                                </div>
+                                                <div className="text-muted small">
+                                                    {blogPost.coverImageFile && (
+                                                        <>
+                                                            {blogPost.coverImageFile.name} ({(blogPost.coverImageFile.size / 1024 / 1024).toFixed(2)}{" "}
+                                                            MB)
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="text-center p-5 border border-dashed rounded mb-3">
@@ -386,19 +348,19 @@ export default function BlogForm() {
                                             <h5 className="fs-6 fw-medium mb-3">
                                                 <i
                                                     className={`bi bi-${
-                                                        currentContent.type === "text" ? "text-paragraph" : "images"
+                                                        currentContent.section_type === "text" ? "text-paragraph" : "images"
                                                     } me-2 text-primary`}
                                                 ></i>
                                                 {editingIndex !== null ? "Edit Content" : "Add New Content"}
                                             </h5>
-                                            {currentContent.type === "text" ? (
-                                                <TextEditor
-                                                    value={currentContent.value as string}
+                                            {currentContent.section_type === "text" ? (
+                                                <QuillEditor
+                                                    value={currentContent.text as string}
                                                     onChange={(value) => updateCurrentContent(value)}
                                                 />
                                             ) : (
                                                 <ImageUploader
-                                                    images={currentContent.value as string[]}
+                                                    images={currentContent.blog_section_images as string[]}
                                                     onChange={(images, files) => updateCurrentContent(images, files)}
                                                 />
                                             )}
@@ -428,15 +390,16 @@ export default function BlogForm() {
                                                     className="d-flex justify-content-between align-items-center p-3 border-bottom"
                                                 >
                                                     <div className="d-flex align-items-center">
-                            <span className={`badge ${item.type === "text" ? "bg-info" : "bg-success"} me-3 p-2`}>
-                              <i className={`bi bi-${item.type === "text" ? "text-paragraph" : "images"}`}></i>
+                            <span
+                                className={`badge ${item.section_type === "text" ? "bg-info" : "bg-success"} me-3 p-2`}>
+                              <i className={`bi bi-${item.section_type === "text" ? "text-paragraph" : "images"}`}></i>
                             </span>
                                                         <span className="text-truncate">
-                              {item.type === "text"
-                                  ? `${(item.value as string).substring(0, 50)}${
-                                      (item.value as string).length > 50 ? "..." : ""
+                              {item.section_type === "text"
+                                  ? `${(item.text as string).replace(/<(.|\n)*?>/g, "").substring(0, 50)}${
+                                    (item.text as string).replace(/<(.|\n)*?>/g, "").length > 50 ? "..." : ""
                                   }`
-                                  : `${(item.value as string[]).length} image(s)`}
+                                  : `${(item.blog_section_images as string[]).length} image(s)`}
                             </span>
                                                     </div>
                                                     <Button

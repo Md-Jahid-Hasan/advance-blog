@@ -4,16 +4,33 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_201_CREATED
+from rest_framework.pagination import PageNumberPagination
 
 from blog.models import Blog, BlogImage, BlogSection
-from blog.serializers import BlogSerializer, BlogListSerializer
+from blog.serializers import BlogSerializer, BlogListSerializer, BlogDetailsSerializer
 
 from user.services import UserService
+
+
+class CustomPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+    def get_paginated_response(self, data):
+        return Response({
+            'total_pages': self.page.paginator.num_pages,  # Add total pages
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'results': data
+        })
+
 
 class BlogListCreateView(generics.ListCreateAPIView):
     serializer_class = BlogSerializer
     permission_classes = (AllowAny,)
-    queryset = Blog.objects.all()
+    queryset = Blog.objects.all().order_by('-created_at')
+    pagination_class = CustomPagination
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -55,3 +72,8 @@ class BlogListCreateView(generics.ListCreateAPIView):
             serializer.save(author=author)
         else:
             serializer.save(self.request.user)
+
+class BlogDetailsView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = BlogDetailsSerializer
+    permission_classes = (AllowAny,)
+    queryset = Blog.objects.all()

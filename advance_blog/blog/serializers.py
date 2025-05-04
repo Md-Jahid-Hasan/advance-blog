@@ -7,18 +7,19 @@ class BlogImageSerializer(serializers.ModelSerializer):
         model = BlogImage
         fields = '__all__'
         extra_kwargs = {
-            'blog_section': {'required': False}
+            'blog_section': {'required': False, 'write_only': True},
         }
 
 
 class BlogSectionSerializer(serializers.ModelSerializer):
     blog_section_images = BlogImageSerializer(many=True, required=False)
+    section_type = serializers.ReadOnlyField()
 
     class Meta:
         model = BlogSection
-        fields = ['text', 'sub_title', 'image_layout', 'blog_section_images', 'blog']
+        fields = ['text', 'sub_title', 'image_layout', 'blog_section_images', 'blog', 'section_type']
         extra_kwargs = {
-            'blog': {'required': False}
+            'blog': {'required': False, 'write_only': True},
         }
 
     def create(self, validated_data):
@@ -54,6 +55,15 @@ class BlogSerializer(serializers.ModelSerializer):
 
         blog_section_serializer.save(blog=blog)
         return blog
+
+
+class BlogDetailsSerializer(serializers.ModelSerializer):
+    content = BlogSectionSerializer(many=True)
+    author = serializers.CharField(source='author.name', read_only=True)
+
+    class Meta:
+        model = Blog
+        fields = ['id', 'title', 'author', 'cover_photo', 'created_at', 'content']
 
 
 class BlogListSerializer(serializers.ModelSerializer):

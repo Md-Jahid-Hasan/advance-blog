@@ -1,6 +1,7 @@
 export interface BlogContent {
-  type: "text" | "image"
-  value: string | string[] | File[]
+  section_type: "text" | "image"
+  text?: string | string[] | File[]
+  blog_section_images?: string[] | File[]
   files?: File[] // For image content, store the actual file objects
 }
 

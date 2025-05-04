@@ -3,8 +3,10 @@
 import {useState, useEffect} from "react"
 import Image from "next/image"
 import Link from "next/link"
-
 import moment from "moment";
+
+import {useToast} from "../components/context/ToastContext"
+import Pagination from "@/components/molecules/Pagination"
 
 // This would normally come from a database or API
 const getDummyBlogs = () => {
@@ -54,71 +56,43 @@ const getDummyBlogs = () => {
 
 export default function BlogListingPage() {
     const [blogs, setBlogs] = useState<any[]>([])
+    const {showToast} = useToast()
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchData = async (fetch_url) => {
             try {
-                const response = await fetch('http://127.0.0.1:8000/blog/', {
+                const response = await fetch(fetch_url, {
                     method: 'GET'
                 })
                 if (!response.ok) {
+                    showToast("Failed to fetched your data", "error")
                     throw new Error('Network response was not ok')
                 } else {
                     const data = await response.json()
-                    setBlogs(data)
+                    setTotalPages(data.total_pages)
+                    setBlogs(data.results)
                 }
 
             } catch (error) {
                 console.error("Error fetching blogs:", error)
             }
         }
-        fetchData()
-    }, [])
+        let blog_list_url = 'http://127.0.0.1:8000/blog/'
+        if (currentPage > 1)
+            blog_list_url = blog_list_url + `?page=${currentPage}`
+        fetchData(blog_list_url)
+    }, [currentPage])
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+        // Scroll to top when changing pages
+        window.scrollTo({top: 0, behavior: "smooth"})
+    }
 
     return (
         <>
-            {/* Bootstrap CSS */}
-            <link
-                href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-                rel="stylesheet"
-                integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
-                crossOrigin="anonymous"
-            />
-
-            {/* Custom CSS */}
-            <style jsx global>{`
-                .blog-card {
-                    transition: transform 0.3s ease, box-shadow 0.3s ease;
-                    height: 100%;
-                }
-
-                .blog-card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-                }
-
-                .blog-card-img-container {
-                    position: relative;
-                    height: 200px;
-                    overflow: hidden;
-                }
-
-                .blog-card-img {
-                    transition: transform 0.5s ease;
-                }
-
-                .blog-card:hover .blog-card-img {
-                    transform: scale(1.05);
-                }
-
-                .blog-header {
-                    background-color: #f8f9fa;
-                    padding: 3rem 0;
-                    margin-bottom: 2rem;
-                    border-bottom: 1px solid #e9ecef;
-                }
-            `}</style>
-
             <div className="blog-header">
                 <div className="container">
                     <div className="row justify-content-between align-items-center">
@@ -151,7 +125,8 @@ export default function BlogListingPage() {
                                 </div>
                                 <div className="card-body">
                                     <div className="d-flex justify-content-between align-items-center mb-2">
-                                        <span className="badge bg-light text-dark">{moment(blog.created_at).format("MMMM D, YYYY")}</span>
+                                        <span
+                                            className="badge bg-light text-dark">{moment(blog.created_at).format("MMMM D, YYYY")}</span>
                                         {/*<small className="text-muted">{blog.readTime}</small>*/}
                                     </div>
                                     <h5 className="card-title fw-bold">{blog.title}</h5>
@@ -180,6 +155,11 @@ export default function BlogListingPage() {
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {/* Pagination */}
+                <div className="mt-5">
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange}/>
                 </div>
             </div>
         </>

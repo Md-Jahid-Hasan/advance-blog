@@ -1,10 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useRef, useState } from "react"
 import Button from "../atoms/Button"
-import Image from "next/image"
+import { useToast } from "../context/ToastContext"
 
 interface ImageUploaderProps {
   images: string[]
@@ -15,6 +14,7 @@ export default function ImageUploader({ images, onChange }: ImageUploaderProps) 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
   const [dragActive, setDragActive] = useState<boolean>(false)
+  const { showToast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || [])
@@ -26,9 +26,10 @@ export default function ImageUploader({ images, onChange }: ImageUploaderProps) 
   const processFiles = (selectedFiles: File[]) => {
     // Check file sizes (2MB limit per file)
     const validFiles = selectedFiles.filter((file) => file.size <= 2 * 1024 * 1024)
+    const oversizedFiles = selectedFiles.length - validFiles.length
 
-    if (validFiles.length < selectedFiles.length) {
-      alert(`${selectedFiles.length - validFiles.length} file(s) exceeded the 2MB size limit and were not added.`)
+    if (oversizedFiles > 0) {
+      showToast(`${oversizedFiles} file(s) exceeded the 2MB size limit and were not added.`, "warning")
     }
 
     if (validFiles.length === 0) return
@@ -42,6 +43,10 @@ export default function ImageUploader({ images, onChange }: ImageUploaderProps) 
 
     // Update with both preview URLs and file objects
     onChange([...images, ...newImageUrls], newFiles)
+
+    if (validFiles.length > 0) {
+      showToast(`Successfully added ${validFiles.length} image${validFiles.length > 1 ? "s" : ""}.`, "success", 3000)
+    }
   }
 
   const removeImage = (index: number) => {
@@ -53,6 +58,7 @@ export default function ImageUploader({ images, onChange }: ImageUploaderProps) 
     setFiles(newFiles)
 
     onChange(newImages, newFiles)
+    showToast("Image removed successfully.", "info", 3000)
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -105,6 +111,20 @@ export default function ImageUploader({ images, onChange }: ImageUploaderProps) 
         </div>
       </div>
 
+      {/* Image Size Best Practices */}
+      <div className="mt-3 p-3 bg-light rounded">
+        <h6 className="mb-2">
+          <i className="bi bi-lightbulb me-2 text-warning"></i>
+          Image Best Practices
+        </h6>
+        <ul className="small text-muted mb-0">
+          <li>Recommended dimensions: 1200×800px for optimal display</li>
+          <li>Keep file sizes under 2MB for faster uploads</li>
+          <li>Use JPG format for photos and PNG for graphics with transparency</li>
+          <li>Consider resizing large images before uploading for better performance</li>
+        </ul>
+      </div>
+
       {images.length > 0 && (
         <div className="mt-4">
           <div className="d-flex justify-content-between align-items-center mb-3">
@@ -115,13 +135,18 @@ export default function ImageUploader({ images, onChange }: ImageUploaderProps) 
             {images.map((image, index) => (
               <div key={index} className="col">
                 <div className="card h-100 border-0 shadow-sm">
-                  <div className="position-relative" style={{ aspectRatio: "1/1" }}>
-                    <Image
-                      src={image || "/placeholder.svg"}
-                      alt={`Uploaded image ${index + 1}`}
-                      fill
-                      style={{ objectFit: "cover", borderRadius: "0.375rem 0.375rem 0 0" }}
-                    />
+                  <div
+                    className="position-relative p-2 d-flex justify-content-center align-items-center bg-light"
+                    style={{ minHeight: "200px" }}
+                  >
+                    <div className="image-container" style={{ maxHeight: "200px", overflow: "hidden" }}>
+                      <img
+                        src={image || "/placeholder.svg"}
+                        alt={`Uploaded image ${index + 1}`}
+                        className="img-fluid"
+                        style={{ maxHeight: "200px", maxWidth: "100%" }}
+                      />
+                    </div>
                     <Button
                       type="button"
                       onClick={() => removeImage(index)}

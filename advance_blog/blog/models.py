@@ -31,6 +31,10 @@ class BlogSection(models.Model):
     text = models.TextField()
     image_layout = models.CharField(choices=IMAGE_LAYOUT, default="RE", max_length=2, null=True)
 
+    @property
+    def section_type(self):
+        return "image" if self.blog_section_images.all() else "text"
+
 
 class BlogImage(models.Model):
     image = models.ImageField(upload_to=get_upload_path)
